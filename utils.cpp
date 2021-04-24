@@ -115,7 +115,7 @@ BOOL CopyFolder(LPCTSTR pstrSrcFolder, LPCTSTR pstrDstFolder, SlotCallback SlotN
         {
 #ifdef _DEBUG
             // 测试环境从硬盘拷贝文件太快，进度条一瞬间就满了，因此加入延迟以观其效
-            Sleep(10);
+            Sleep(1);
 #endif
             if (!CopyFile(strSrcFile, strDstFile, FALSE))
             {

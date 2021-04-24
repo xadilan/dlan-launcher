@@ -13,6 +13,7 @@ name='Microsoft.Windows.Common-Controls' version='6.0.0.0' \
 processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
 
 #define DLAN_FOLDER_NAME L"dlan_launcher"
+#define ID_DEFAULTPROGRESSCTRL	401
 #define ID_SMOOTHPROGRESSCTRL	402
 #define ID_LABEL 501
 #define MAX_LOADSTRING 100
@@ -172,7 +173,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
        390,
        30,
        hWnd,
-       (HMENU)ID_SMOOTHPROGRESSCTRL,
+       (HMENU)ID_DEFAULTPROGRESSCTRL,
        hInstance,
        NULL);
 
@@ -268,7 +269,7 @@ void NotifyProgress(ULONGLONG fileBytes, LPCTSTR filePath)
     double percent = copiedBytes / gClientTotalByts * 100;
 
     TCHAR msg[1024] = { 0 };
-    _stprintf(msg, _T("%.2lf %%"), percent);
+    _stprintf(msg, _T("%.0lf %%"), percent);
     SetWindowText(gHProgressLabel, msg);
 
     ::SendMessage(gHSmoothProgressCtrl, PBM_SETPOS, (WPARAM)(INT)percent, 0);
@@ -308,8 +309,16 @@ DWORD WINAPI MigrateFiles(LPVOID lpParameter)
     SetWindowText(gHStatusLabel, _T("正在加载客户端 ..."));
     CopyFolder(srcDir, dstDir, NotifyProgress);
     SetWindowText(gHStatusLabel, _T("加载完成，正在启动客户端 ..."));
-
     RunNewProcess(gClientPath);
-    Sleep(3000);
+    int launchMS = 5000;
+    int sleepMS = launchMS / 100;
+    for (int i = 0; i <= 100; i++) {
+        ::SendMessage(gHSmoothProgressCtrl, PBM_SETPOS, (WPARAM)(INT)i, 0);
+        TCHAR msg[32] = { 0 };
+        _stprintf(msg, _T("%d %%"), i);
+        SetWindowText(gHProgressLabel, msg);
+        Sleep(sleepMS);
+    }
+
     exit(0);
 }
