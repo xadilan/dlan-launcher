@@ -165,11 +165,11 @@ ULONGLONG GetClientTotalBytesFromTextFile(LPCSTR configFilePath)
     return 0;
 }
 
-void RunNewProcess(LPCTSTR lpCommandLine, LPCTSTR lpWorkDir) {
+PROCESS_INFORMATION RunNewProcess(LPCTSTR lpCommandLine, LPCTSTR lpWorkDir) {
     LPTSTR cmd = _tcsdup(lpCommandLine);
 
     STARTUPINFO si;
-    PROCESS_INFORMATION pi;
+    PROCESS_INFORMATION pi = { 0 };
 
     ZeroMemory(&si, sizeof(si));
     si.cb = sizeof(si);
@@ -187,12 +187,10 @@ void RunNewProcess(LPCTSTR lpCommandLine, LPCTSTR lpWorkDir) {
         &pi))
     {
         _tprintf(_T("CreateProcess failed %s (%d).\n"), lpCommandLine, GetLastError());
-        return;
     }
 
-    CloseHandle(pi.hThread);
-    CloseHandle(pi.hProcess);
     free(cmd);
+    return pi;
 }
 
 
@@ -298,6 +296,45 @@ bool IsDirExists(const CString& dirName_in)
         return true;   // this is a directory!
 
     return false;    // this is not a directory!
+}
+
+
+BOOL RemoveDirectoryRecursive(LPCTSTR dirName)
+{
+    CFileFind tempFind;
+    TCHAR szCurPath[MAX_PATH];
+    _sntprintf(szCurPath, MAX_PATH, _T("%s//*.*"), dirName);
+    WIN32_FIND_DATA FindFileData;
+    ZeroMemory(&FindFileData, sizeof(WIN32_FIND_DATAA));
+    HANDLE hFile = FindFirstFile(szCurPath, &FindFileData);
+    BOOL IsFinded = TRUE;
+    while (IsFinded)
+    {
+        IsFinded = FindNextFile(hFile, &FindFileData);    //递归搜索其他的文件
+        if (_tcscmp(FindFileData.cFileName, _T(".")) && _tcscmp(FindFileData.cFileName, _T("..")))
+        {
+            CString strFileName = "";
+            strFileName = strFileName + dirName + "//" + FindFileData.cFileName;
+            CString strTemp;
+            strTemp = strFileName;
+            if (IsDirectory(strFileName))
+            {
+                RemoveDirectoryRecursive(strTemp);
+            }
+            else
+            {
+                DeleteFile(strTemp);
+            }
+        }
+    }
+    FindClose(hFile);
+
+    BOOL bRet = RemoveDirectory(dirName);
+    if (bRet == 0)
+    {
+        return FALSE;
+    }
+    return TRUE;
 }
 
 

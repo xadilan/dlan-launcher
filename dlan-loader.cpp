@@ -29,6 +29,7 @@ BOOL                InitInstance(HINSTANCE, int);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 DWORD WINAPI MigrateFiles(LPVOID lpParameter);
 
+HWND ghMainWindow = NULL;
 HWND gHSmoothProgressCtrl;
 HWND gHStatusLabel;
 HWND gHProgressLabel;
@@ -143,7 +144,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 {
    hInst = hInstance; // Store instance handle in our global variable
 
-   HWND hWnd = CreateWindowW(szWindowClass, 
+   ghMainWindow = CreateWindowW(szWindowClass, 
        szTitle, 
        WS_OVERLAPPEDWINDOW,
        0,
@@ -155,11 +156,11 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
        hInstance, 
        nullptr);
 
-   if (!hWnd)
+   if (!ghMainWindow)
    {
       return FALSE;
    }
-   CenterWindow(hWnd);
+   CenterWindow(ghMainWindow);
 
    // https://github.com/malortie/Tutorials/blob/master/tutorials/cpp/win32/controls/progressbar/ProgressBar.cpp
    // Create smooth progress bar.
@@ -172,7 +173,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
        40,
        390,
        30,
-       hWnd,
+       ghMainWindow,
        (HMENU)ID_DEFAULTPROGRESSCTRL,
        hInstance,
        NULL);
@@ -189,7 +190,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
        90,
        390,
        20,
-       hWnd,
+       ghMainWindow,
        (HMENU)ID_LABEL,
        hInstance,
        NULL);
@@ -203,7 +204,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
         40,
         100,
         20,
-        hWnd,
+        ghMainWindow,
         (HMENU)ID_LABEL,
         hInstance,
         NULL);
@@ -223,8 +224,8 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
    }
    
 
-   ShowWindow(hWnd, nCmdShow);
-   UpdateWindow(hWnd);
+   ShowWindow(ghMainWindow, nCmdShow);
+   UpdateWindow(ghMainWindow);
 
    return TRUE;
 }
@@ -278,6 +279,21 @@ void NotifyProgress(ULONGLONG fileBytes, LPCTSTR filePath)
 }
 
 
+void ShowClientLaunchProgress()
+{
+    SetWindowText(gHStatusLabel, _T("客户端启动成功后，该窗口自动关闭..."));
+    int launchMS = 5000;
+    int sleepMS = launchMS / 100;
+    for (int i = 0; i <= 100; i++) {
+        ::SendMessage(gHSmoothProgressCtrl, PBM_SETPOS, (WPARAM)(INT)i, 0);
+        TCHAR msg[32] = { 0 };
+        _stprintf(msg, _T("%d %%"), i);
+        SetWindowText(gHProgressLabel, msg);
+        Sleep(sleepMS);
+    }
+}
+
+
 DWORD WINAPI MigrateFiles(LPVOID lpParameter)
 {
     TCHAR workDir[MAX_PATH] = { 0 };
@@ -306,19 +322,24 @@ DWORD WINAPI MigrateFiles(LPVOID lpParameter)
         gClientPath = dstDir + "\\dlan_launcher.exe";
     }
 
-    SetWindowText(gHStatusLabel, _T("正在加载客户端 ..."));
     CopyFolder(srcDir, dstDir, NotifyProgress);
+
     SetWindowText(gHStatusLabel, _T("加载完成，正在启动客户端 ..."));
-    RunNewProcess(gClientPath);
-    int launchMS = 5000;
-    int sleepMS = launchMS / 100;
-    for (int i = 0; i <= 100; i++) {
-        ::SendMessage(gHSmoothProgressCtrl, PBM_SETPOS, (WPARAM)(INT)i, 0);
-        TCHAR msg[32] = { 0 };
-        _stprintf(msg, _T("%d %%"), i);
-        SetWindowText(gHProgressLabel, msg);
-        Sleep(sleepMS);
+    PROCESS_INFORMATION pi = RunNewProcess(gClientPath);
+    if (NULL == pi.hProcess) {
+        SetWindowText(gHStatusLabel, _T("客户端进程创建失败 ..."));
+    }
+    else
+    {
+        ShowClientLaunchProgress();
+        ShowWindow(ghMainWindow, SW_HIDE);
+        WaitForSingleObject(pi.hProcess, INFINITE);
+        CloseHandle(pi.hThread);
+        CloseHandle(pi.hProcess);
     }
 
+    // 其退出时，清除客户端文件
+    RemoveDirectoryRecursive(dstDir);
     exit(0);
+    return 0;
 }
