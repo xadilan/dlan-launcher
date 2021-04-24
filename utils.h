@@ -1,4 +1,6 @@
 #pragma once
+// https://blog.csdn.net/jtujtujtu/article/details/8903798
+#define _AFX_NO_MFC_CONTROLS_IN_DIALOGS
 #include <afx.h>
 
 typedef void (*SlotCallback)(ULONGLONG, LPCTSTR);
