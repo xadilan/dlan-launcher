@@ -316,7 +316,6 @@ DWORD WINAPI MigrateFiles(LPVOID lpParameter)
     if (driveRestBytes < gClientTotalByts) {
         SetWindowText(gHStatusLabel, _T("硬盘空间不足，直接从光盘运行"));
         gClientPath = srcDir + "\\dlan_launcher.exe";
-        return 1;
     }
     else {
         gClientPath = dstDir + "\\dlan_launcher.exe";
@@ -339,7 +338,9 @@ DWORD WINAPI MigrateFiles(LPVOID lpParameter)
     }
 
     // 其退出时，清除客户端文件
-    RemoveDirectoryRecursive(dstDir);
+    if (IsDirExists(dstDir)) {
+        RemoveDirectoryRecursive(dstDir);
+    }
     exit(0);
     return 0;
 }
