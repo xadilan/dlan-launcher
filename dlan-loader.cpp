@@ -28,6 +28,8 @@ ATOM                MyRegisterClass(HINSTANCE hInstance);
 BOOL                InitInstance(HINSTANCE, int);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 DWORD WINAPI MigrateFiles(LPVOID lpParameter);
+void LaunchDlanClient(const CString& dstDir, bool hasSkippedCopy);
+
 
 HWND ghMainWindow = NULL;
 HWND gHSmoothProgressCtrl;
@@ -321,10 +323,25 @@ DWORD WINAPI MigrateFiles(LPVOID lpParameter)
         gClientPath = dstDir + "\\dlan_launcher.exe";
     }
 
-    CopyFolder(srcDir, dstDir, NotifyProgress);
+    BOOL hasSkippedCopy = FALSE;
+    if (srcDir == dstDir) {
+        hasSkippedCopy = true;
+        SetWindowText(gHStatusLabel, _T("跳过加载 ..."));
+        Sleep(1000);
+    }
+    else {
+        CopyFolder(srcDir, dstDir, NotifyProgress);
+    }
+    LaunchDlanClient(dstDir, hasSkippedCopy);
+}
 
+
+void LaunchDlanClient(const CString& dstDir, bool hasSkippedCopy) {
     SetWindowText(gHStatusLabel, _T("加载完成，正在启动客户端 ..."));
     PROCESS_INFORMATION pi = RunNewProcess(gClientPath);
+    SetWindowText(gHStatusLabel, gClientPath);
+    Sleep(1000);
+
     if (NULL == pi.hProcess) {
         SetWindowText(gHStatusLabel, _T("客户端进程创建失败 ..."));
     }
@@ -338,9 +355,8 @@ DWORD WINAPI MigrateFiles(LPVOID lpParameter)
     }
 
     // 其退出时，清除客户端文件
-    if (IsDirExists(dstDir)) {
+    if (IsDirExists(dstDir) && !hasSkippedCopy) {
         RemoveDirectoryRecursive(dstDir);
     }
     exit(0);
-    return 0;
 }
