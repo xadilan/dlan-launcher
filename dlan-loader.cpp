@@ -263,6 +263,15 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     return 0;
 }
 
+void UpdateProgress(double percent)
+{
+    TCHAR msg[1024] = { 0 };
+    _stprintf(msg, _T("%.0lf %%"), percent);
+    SetWindowText(gHProgressLabel, msg);
+
+    ::SendMessage(gHSmoothProgressCtrl, PBM_SETPOS, (WPARAM)(INT)percent, 0);
+}
+
 
 void NotifyProgress(ULONGLONG fileBytes, LPCTSTR filePath)
 {
@@ -271,26 +280,19 @@ void NotifyProgress(ULONGLONG fileBytes, LPCTSTR filePath)
     copiedBytes += fileBytes;
     double percent = copiedBytes / gClientTotalByts * 100;
 
-    TCHAR msg[1024] = { 0 };
-    _stprintf(msg, _T("%.0lf %%"), percent);
-    SetWindowText(gHProgressLabel, msg);
-
-    ::SendMessage(gHSmoothProgressCtrl, PBM_SETPOS, (WPARAM)(INT)percent, 0);
-    _stprintf(msg, _T("正在加载 %s"), filePath);
-    SetWindowText(gHStatusLabel, msg);
+    UpdateProgress(percent);
+    SetWindowText(gHStatusLabel, _T("正在加载 ..."));
 }
+
 
 
 void ShowClientLaunchProgress()
 {
     SetWindowText(gHStatusLabel, _T("客户端启动成功后，该窗口自动关闭..."));
-    int launchMS = 5000;
+    int launchMS = 1000;
     int sleepMS = launchMS / 100;
     for (int i = 0; i <= 100; i++) {
-        ::SendMessage(gHSmoothProgressCtrl, PBM_SETPOS, (WPARAM)(INT)i, 0);
-        TCHAR msg[32] = { 0 };
-        _stprintf(msg, _T("%d %%"), i);
-        SetWindowText(gHProgressLabel, msg);
+        UpdateProgress(i);
         Sleep(sleepMS);
     }
 }
@@ -324,26 +326,32 @@ DWORD WINAPI MigrateFiles(LPVOID lpParameter)
     }
 
     BOOL hasSkippedCopy = FALSE;
-    if (srcDir == dstDir) {
+    if (srcDir[0] == dstDir[0]) {
         hasSkippedCopy = true;
+        gClientPath = srcDir + "\\dlan_launcher.exe";
         SetWindowText(gHStatusLabel, _T("跳过加载 ..."));
-        Sleep(1000);
     }
     else {
         CopyFolder(srcDir, dstDir, NotifyProgress);
     }
-    LaunchDlanClient(dstDir, hasSkippedCopy);
+    if (INVALID_FILE_ATTRIBUTES == GetFileAttributes(gClientPath) && GetLastError() == ERROR_FILE_NOT_FOUND) {
+        SetWindowText(gHStatusLabel, _T("找不到客户端路径 ..."));
+    }
+    else {
+        LaunchDlanClient(dstDir, hasSkippedCopy);
+    }
 }
 
 
 void LaunchDlanClient(const CString& dstDir, bool hasSkippedCopy) {
+    Sleep(500);
     SetWindowText(gHStatusLabel, _T("加载完成，正在启动客户端 ..."));
+    UpdateProgress(100);
+
     PROCESS_INFORMATION pi = RunNewProcess(gClientPath);
-    SetWindowText(gHStatusLabel, gClientPath);
-    Sleep(1000);
 
     if (NULL == pi.hProcess) {
-        SetWindowText(gHStatusLabel, _T("客户端进程创建失败 ..."));
+        SetWindowText(gHStatusLabel, _T("启动客户端失败 ..."));
     }
     else
     {
