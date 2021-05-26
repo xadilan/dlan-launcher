@@ -326,7 +326,12 @@ DWORD WINAPI MigrateFiles(LPVOID lpParameter)
     }
 
     BOOL hasSkippedCopy = FALSE;
-    if (srcDir[0] == dstDir[0]) {
+    if (dstDir[0] == 'X') {
+        hasSkippedCopy = true;
+        gClientPath = srcDir + "\\dlan_launcher.exe";
+        SetWindowText(gHStatusLabel, _T("检测到在虚拟机运行，跳过加载 ..."));
+    }
+    else if (srcDir[0] == dstDir[0]) {
         hasSkippedCopy = true;
         gClientPath = srcDir + "\\dlan_launcher.exe";
         SetWindowText(gHStatusLabel, _T("跳过加载 ..."));
