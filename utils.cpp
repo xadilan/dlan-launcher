@@ -1,7 +1,6 @@
 #include "utils.h"
 #include <tchar.h>
 
-
 BOOL IsDirectory(LPCTSTR pstrPath)
 {
     if (NULL == pstrPath)
@@ -117,12 +116,18 @@ BOOL CopyFolder(LPCTSTR pstrSrcFolder, LPCTSTR pstrDstFolder, SlotCallback SlotN
             // 测试环境从硬盘拷贝文件太快，进度条一瞬间就满了，因此加入延迟以观其效
             Sleep(1);
 #endif
-            if (!CopyFile(strSrcFile, strDstFile, FALSE))
+            if (PathFileExists(strDstFile)) {
+                SetFileAttributes(strDstFile,
+                    GetFileAttributes(strDstFile) & ~FILE_ATTRIBUTE_READONLY);
+                DeleteFile(strDstFile);
+            }
+            BOOL isOk = CopyFile(strSrcFile, strDstFile, FALSE);
+            SlotNotifyCallback(finder.GetLength(), finder.GetFileName(), isOk);
+            if (!isOk)
             {
                 finder.Close();
                 return FALSE;
             }
-            SlotNotifyCallback(finder.GetLength(), finder.GetFileName());
         }
 
     } /*while (bWorking)*/
@@ -301,9 +306,12 @@ bool IsDirExists(const CString& dirName_in)
 
 BOOL RemoveDirectoryRecursive(LPCTSTR dirName)
 {
+    if (!PathFileExists(dirName)) {
+        return TRUE;
+    }
     CFileFind tempFind;
     TCHAR szCurPath[MAX_PATH];
-    _sntprintf(szCurPath, MAX_PATH, _T("%s//*.*"), dirName);
+    _sntprintf(szCurPath, MAX_PATH, _T("%s\\*.*"), dirName);
     WIN32_FIND_DATA FindFileData;
     ZeroMemory(&FindFileData, sizeof(WIN32_FIND_DATAA));
     HANDLE hFile = FindFirstFile(szCurPath, &FindFileData);
@@ -314,7 +322,7 @@ BOOL RemoveDirectoryRecursive(LPCTSTR dirName)
         if (_tcscmp(FindFileData.cFileName, _T(".")) && _tcscmp(FindFileData.cFileName, _T("..")))
         {
             CString strFileName = "";
-            strFileName = strFileName + dirName + "//" + FindFileData.cFileName;
+            strFileName = strFileName + dirName + "\\" + FindFileData.cFileName;
             CString strTemp;
             strTemp = strFileName;
             if (IsDirectory(strFileName))
@@ -323,17 +331,14 @@ BOOL RemoveDirectoryRecursive(LPCTSTR dirName)
             }
             else
             {
+                SetFileAttributes(strTemp,
+                    GetFileAttributes(strTemp) & ~FILE_ATTRIBUTE_READONLY);
                 DeleteFile(strTemp);
             }
         }
     }
     FindClose(hFile);
-
-    BOOL bRet = RemoveDirectory(dirName);
-    if (bRet == 0)
-    {
-        return FALSE;
-    }
+    RemoveDirectory(dirName);
     return TRUE;
 }
 

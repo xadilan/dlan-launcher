@@ -2,8 +2,9 @@
 // https://blog.csdn.net/jtujtujtu/article/details/8903798
 #define _AFX_NO_MFC_CONTROLS_IN_DIALOGS
 #include <afx.h>
+#include <shlwapi.h>
 
-typedef void (*SlotCallback)(ULONGLONG, LPCTSTR);
+typedef void (*SlotCallback)(ULONGLONG, LPCTSTR, BOOL);
 BOOL CopyFolder(LPCTSTR pstrSrcFolder, LPCTSTR pstrDstFolder, SlotCallback callback);
 
 ULONGLONG GetClientTotalBytesFromTextFile(LPCSTR configFilePath);
