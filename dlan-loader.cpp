@@ -77,10 +77,10 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     // TODO: Place code here.
     if (!_tcscmp(lpCmdLine, L"-PE")) {
-        DLAN_FOLDER_NAME = L"dlan_launcher_pe";
+        DLAN_FOLDER_NAME = L"dlan_launcher_32";
     }
     else {
-        DLAN_FOLDER_NAME = L"dlan_launcher";
+        DLAN_FOLDER_NAME = L"dlan_launcher_64";
     }
 
     // Initialize global strings
