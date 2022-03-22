@@ -163,7 +163,7 @@ void GetWorkDir(LPTSTR szDir)
     ASSERT(szDir != NULL);
     TCHAR ModuleFileName[MAX_PATH] = { 0 };
     GetModuleFileName(NULL, ModuleFileName, MAX_PATH);
-    _tcsncpy(szDir, ModuleFileName, _tcslen(ModuleFileName) - _tcslen(_tcsrchr(ModuleFileName, _T('\\'))) + 1);
+    _tcsncpy(szDir, ModuleFileName, _tcslen(ModuleFileName) - _tcslen(_tcsrchr(ModuleFileName, _T('\\'))));
 }
 
 

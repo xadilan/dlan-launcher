@@ -323,6 +323,13 @@ void ShowClientLaunchProgress()
     }
 }
 
+void NotiFyError(LPCTSTR msg)
+{
+    SetWindowText(gHStatusLabel, msg);
+    Sleep(1000 * 30);
+    exit(1);
+}
+
 
 DWORD WINAPI MigrateFiles(LPVOID lpParameter)
 {
@@ -336,14 +343,21 @@ DWORD WINAPI MigrateFiles(LPVOID lpParameter)
     dstDir.Format(_T("%s%s"), biggestDrive, DLAN_FOLDER_NAME);
     gClientTmpFile = dstDir + "\\record.txt";
     gClientPath = dstDir + "\\dlan_launcher.exe";
-    CString pkgPath = srcDir;
-    pkgPath += _T(".zip");
-    
-    if (!PathFileExists(pkgPath)) {
+    CString pkgPath;
+    pkgPath.Format(_T("%s\\windows\\%s.zip"), workDir, DLAN_FOLDER_NAME);
+    CString z7Path;
+    z7Path.Format(_T("%s\\windows\\7z.exe"), workDir);
+
+    CString msg;
+    if (!PathFileExists(z7Path)) {
         CString msg;
+        msg.Format(_T("can not find %s"), z7Path);
+        NotiFyError(msg);
+    }
+
+    if (!PathFileExists(pkgPath)) {
         msg.Format(_T("can not find %s"), pkgPath);
-        SetWindowText(gHStatusLabel, msg);
-        Sleep(1000);
+        NotiFyError(msg);
     }
 
     BOOL hasSkippedCopy = FALSE;
@@ -358,7 +372,7 @@ DWORD WINAPI MigrateFiles(LPVOID lpParameter)
         //RemoveDirectoryRecursive(dstDir);
         // CopyFolder(srcDir, dstDir, NotifyProgress);
         TCHAR cmd[1024] = { 0 };
-        _sntprintf(cmd, 512, _T("7z -y x -o\"%s\" \"%s\""), biggestDrive, pkgPath);
+        _sntprintf(cmd, 512, _T("%s -y x -o\"%s\" \"%s\""), z7Path, biggestDrive, pkgPath);
 
         STARTUPINFO si;
         PROCESS_INFORMATION pi = { 0 };
@@ -383,7 +397,7 @@ DWORD WINAPI MigrateFiles(LPVOID lpParameter)
 
         DWORD retValue = 0;
         int progress = 0;
-        while (IsProcessRunning(pi.dwProcessId, 100)) {
+        while (IsProcessRunning(pi.dwProcessId, 70)) {
             if (progress < 100) {
                 progress += 1;
             }
