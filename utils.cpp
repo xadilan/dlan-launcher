@@ -30,6 +30,15 @@ BOOL IsDirectory(LPCTSTR pstrPath)
 }
 
 
+BOOL IsProcessRunning(DWORD pid, int timeoutMs=0)
+{
+    HANDLE process = OpenProcess(SYNCHRONIZE, FALSE, pid);
+    DWORD ret = WaitForSingleObject(process, timeoutMs);
+    CloseHandle(process);
+    return ret == WAIT_TIMEOUT;
+}
+
+
 
 BOOL CopyFolder(LPCTSTR pstrSrcFolder, LPCTSTR pstrDstFolder, SlotCallback SlotNotifyCallback)
 {
@@ -141,10 +150,10 @@ BOOL CopyFolder(LPCTSTR pstrSrcFolder, LPCTSTR pstrDstFolder, SlotCallback SlotN
 
 // http://cplusrun.com/WinAPI/Set_Current_Working_Directory_to_EXE_Path
 void SetCurDirToExeDir() {
-    WCHAR ModuleFileName[MAX_PATH] = { 0 };
-    WCHAR Cwd[MAX_PATH] = { 0 };
+    TCHAR ModuleFileName[MAX_PATH] = { 0 };
+    TCHAR Cwd[MAX_PATH] = { 0 };
     GetModuleFileName(NULL, ModuleFileName, MAX_PATH);
-    wcsncpy(Cwd, ModuleFileName, wcslen(ModuleFileName) - wcslen(wcsrchr(ModuleFileName, L'\\')) + 1);
+    _tcsncpy(Cwd, ModuleFileName, _tcslen(ModuleFileName) - _tcslen(_tcsrchr(ModuleFileName, _T('\\'))) + 1);
     SetCurrentDirectory(Cwd);
 }
 
@@ -152,9 +161,9 @@ void SetCurDirToExeDir() {
 void GetWorkDir(LPTSTR szDir)
 {
     ASSERT(szDir != NULL);
-    WCHAR ModuleFileName[MAX_PATH] = { 0 };
+    TCHAR ModuleFileName[MAX_PATH] = { 0 };
     GetModuleFileName(NULL, ModuleFileName, MAX_PATH);
-    wcsncpy(szDir, ModuleFileName, wcslen(ModuleFileName) - wcslen(wcsrchr(ModuleFileName, L'\\')) + 1);
+    _tcsncpy(szDir, ModuleFileName, _tcslen(ModuleFileName) - _tcslen(_tcsrchr(ModuleFileName, _T('\\'))) + 1);
 }
 
 
@@ -202,19 +211,19 @@ PROCESS_INFORMATION RunNewProcess(LPCTSTR lpCommandLine, LPCTSTR lpWorkDir) {
 CString GetBiggestDriveFromHDD(ULONGLONG* restBytes)
 {
     DWORD cchBuffer;
-    WCHAR* driveStrings;
+    TCHAR* driveStrings;
     UINT driveType;
     ULARGE_INTEGER freeSpace;
 
     // Find out how big a buffer we need
     cchBuffer = GetLogicalDriveStrings(0, NULL);
 
-    driveStrings = (WCHAR*)malloc((cchBuffer + 1) * sizeof(TCHAR));
+    driveStrings = (TCHAR*)malloc((cchBuffer + 1) * sizeof(TCHAR));
     if (driveStrings == NULL)
     {
         return "";
     }
-    WCHAR* buf = driveStrings;
+    TCHAR* buf = driveStrings;
     // Fetch all drive strings    
     GetLogicalDriveStrings(cchBuffer, driveStrings);
 
@@ -263,7 +272,7 @@ ULONGLONG GetDirectoryBytes(CString path)
                 // make sure we skip "." and "..".  Have to use strcmp here because
                 // some file names can start with a dot, so just testing for the 
                 // first dot is not suffient.
-                if (_tcscmp(data.cFileName, L".") != 0 && _tcscmp(data.cFileName, L"..") != 0)
+                if (_tcscmp(data.cFileName, _T(".")) != 0 && _tcscmp(data.cFileName, _T("..")) != 0)
                 {
                     // We found a sub-directory, so get the files in it too
                     fname = path + "\\" + data.cFileName;
@@ -310,7 +319,7 @@ BOOL RemoveDirectoryRecursive(LPCTSTR dirName)
         return TRUE;
     }
     CFileFind tempFind;
-    TCHAR szCurPath[MAX_PATH];
+    TCHAR szCurPath[MAX_PATH] = { 0 };
     _sntprintf(szCurPath, MAX_PATH, _T("%s\\*.*"), dirName);
     WIN32_FIND_DATA FindFileData;
     ZeroMemory(&FindFileData, sizeof(WIN32_FIND_DATAA));

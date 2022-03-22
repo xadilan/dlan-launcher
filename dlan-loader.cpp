@@ -67,6 +67,19 @@ VOID CenterWindow(HWND hwndWindow)
 }
 
 
+BOOL Is64BitOS() {
+    BOOL f64 = FALSE;
+    return IsWow64Process(GetCurrentProcess(), &f64) && f64;
+}
+
+#ifdef _DEBUGT
+int main(int argc, char* argv[]) {
+    TCHAR srcFile[] = _T("D:\\dlan_launcher_32.zip");
+    TCHAR dstFolder[] = _T("D:\\");
+    ExtractZipFile(srcFile, dstFolder);
+    return 0;
+}
+#else
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     _In_opt_ HINSTANCE hPrevInstance,
     _In_ LPWSTR    lpCmdLine,
@@ -76,7 +89,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     UNREFERENCED_PARAMETER(lpCmdLine);
 
     // TODO: Place code here.
-    if (!_tcscmp(lpCmdLine, L"-PE")) {
+    if (!Is64BitOS()) {
         DLAN_FOLDER_NAME = L"dlan_launcher_32";
     }
     else {
@@ -110,6 +123,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     return (int)msg.wParam;
 }
+#endif 
 
 
 
@@ -317,25 +331,19 @@ DWORD WINAPI MigrateFiles(LPVOID lpParameter)
     CString srcDir = workDir;
     srcDir += DLAN_FOLDER_NAME;
     ULONGLONG driveRestBytes = 0;
-    CString dstDir = GetBiggestDriveFromHDD(&driveRestBytes);
-    dstDir += DLAN_FOLDER_NAME;
+    CString biggestDrive = GetBiggestDriveFromHDD(&driveRestBytes);
+    CString dstDir;
+    dstDir.Format(_T("%s%s"), biggestDrive, DLAN_FOLDER_NAME);
     gClientTmpFile = dstDir + "\\record.txt";
-
-    if (!IsDirExists(srcDir)) {
-        CString msg = _T("无法启动，找不到文件夹: ");
-        msg += DLAN_FOLDER_NAME;
+    gClientPath = dstDir + "\\dlan_launcher.exe";
+    CString pkgPath = srcDir;
+    pkgPath += _T(".zip");
+    
+    if (!PathFileExists(pkgPath)) {
+        CString msg;
+        msg.Format(_T("can not find %s"), pkgPath);
         SetWindowText(gHStatusLabel, msg);
-        return 1;
-    }
-
-    gClientTotalByts = GetDirectoryBytes(srcDir);
-
-    if (driveRestBytes < gClientTotalByts) {
-        SetWindowText(gHStatusLabel, _T("硬盘空间不足，直接从光盘运行"));
-        gClientPath = srcDir + "\\dlan_launcher.exe";
-    }
-    else {
-        gClientPath = dstDir + "\\dlan_launcher.exe";
+        Sleep(1000);
     }
 
     BOOL hasSkippedCopy = FALSE;
@@ -348,9 +356,41 @@ DWORD WINAPI MigrateFiles(LPVOID lpParameter)
     }
     else {
         //RemoveDirectoryRecursive(dstDir);
-        CopyFolder(srcDir, dstDir, NotifyProgress);
+        // CopyFolder(srcDir, dstDir, NotifyProgress);
+        TCHAR cmd[1024] = { 0 };
+        _sntprintf(cmd, 512, _T("7z -y x -o\"%s\" \"%s\""), biggestDrive, pkgPath);
+
+        STARTUPINFO si;
+        PROCESS_INFORMATION pi = { 0 };
+
+        ZeroMemory(&si, sizeof(si));
+        si.cb = sizeof(si);
+        ZeroMemory(&pi, sizeof(pi));
+
+        if (!CreateProcess(NULL,
+            cmd,
+            NULL,
+            NULL,
+            FALSE,
+            CREATE_NO_WINDOW,
+            NULL,
+            workDir,
+            &si,
+            &pi))
+        {
+            _tprintf(_T("CreateProcess failed %s (%d).\n"), cmd, GetLastError());
+        }
+
+        DWORD retValue = 0;
+        int progress = 0;
+        while (IsProcessRunning(pi.dwProcessId, 100)) {
+            if (progress < 100) {
+                progress += 1;
+            }
+            UpdateProgress(progress);
+        }
     }
-    if (INVALID_FILE_ATTRIBUTES == GetFileAttributes(gClientPath) && GetLastError() == ERROR_FILE_NOT_FOUND) {
+    if (!PathFileExists(gClientPath)) {
         SetWindowText(gHStatusLabel, _T("找不到客户端路径 ..."));
     }
     else {
@@ -361,13 +401,25 @@ DWORD WINAPI MigrateFiles(LPVOID lpParameter)
 
 
 void LaunchDlanClient(const CString& dstDir, bool hasSkippedCopy) {
-    Sleep(500);
-    SetWindowText(gHStatusLabel, _T("加载完成，正在启动客户端 ..."));
-    UpdateProgress(100);
-
     CString cmd = gClientPath + " --record_file ";
     cmd += gClientTmpFile;
+
+
+    TCHAR exeDir[MAX_PATH] = { 0 };
+    GetWorkDir(exeDir);
+    CString ukeyDir = exeDir;
+    ukeyDir += "\\config";
+
+
+    if (IsDirExists(ukeyDir)) {
+        cmd += " --ukey_dir ";
+        cmd += ukeyDir;
+    }
+    SetWindowText(gHStatusLabel, _T("加载完成，正在启动客户端 ..."));
     PROCESS_INFORMATION pi = RunNewProcess(cmd);
+    Sleep(300);
+    UpdateProgress(100);
+
 
     if (NULL == pi.hProcess) {
         SetWindowText(gHStatusLabel, _T("启动客户端失败 ..."));
