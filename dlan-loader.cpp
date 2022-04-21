@@ -165,6 +165,7 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
 //
 BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 {
+    KillExistsDlanProcessInBackground();
     hInst = hInstance; // Store instance handle in our global variable
 
     ghMainWindow = CreateWindowW(szWindowClass,
@@ -245,8 +246,6 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
     if (hThread == NULL) {
         SetWindowText(gHStatusLabel, _T("创建线程失败"));
     }
-
-
     ShowWindow(ghMainWindow, nCmdShow);
     UpdateWindow(ghMainWindow);
 
@@ -396,10 +395,15 @@ DWORD WINAPI MigrateFiles(LPVOID lpParameter)
         }
 
         DWORD retValue = 0;
-        int progress = 0;
-        while (IsProcessRunning(pi.dwProcessId, 70)) {
-            if (progress < 100) {
-                progress += 1;
+        float progress = 0;
+        const int fakeLimit = 90;
+        while (IsProcessRunning(pi.dwProcessId, 100)) {
+            if (progress < fakeLimit) {
+                progress += 0.5;
+            }
+            else {
+                // make progress bar flows a little bit slower when 7z not extract files finished
+                progress += 0.1;
             }
             UpdateProgress(progress);
         }
@@ -411,6 +415,10 @@ DWORD WINAPI MigrateFiles(LPVOID lpParameter)
         LaunchDlanClient(dstDir, hasSkippedCopy);
     }
     return 0;
+}
+
+bool HasClientWindowAppears() {
+    return PathFileExists(gClientTmpFile);
 }
 
 
@@ -431,7 +439,18 @@ void LaunchDlanClient(const CString& dstDir, bool hasSkippedCopy) {
     }
     SetWindowText(gHStatusLabel, _T("加载完成，正在启动客户端 ..."));
     PROCESS_INFORMATION pi = RunNewProcess(cmd);
-    Sleep(300);
+    float uiProgress = 1;
+    const int fakeLimit = 90;
+    while (!HasClientWindowAppears()) {
+        if (uiProgress < fakeLimit) {
+            uiProgress += 1;
+        }
+        else {
+            uiProgress += 0.1;
+        }
+        UpdateProgress(uiProgress);
+        Sleep(100);
+    }
     UpdateProgress(100);
 
 

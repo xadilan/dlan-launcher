@@ -1,4 +1,5 @@
 #include "utils.h"
+#include <tlhelp32.h>    //CreateToolhelp32Snapshot
 #include <tchar.h>
 
 BOOL IsDirectory(LPCTSTR pstrPath)
@@ -350,6 +351,101 @@ BOOL RemoveDirectoryRecursive(LPCTSTR dirName)
     RemoveDirectory(dirName);
     return TRUE;
 }
+
+
+BOOL FindProcessPid(LPCTSTR ProcessName, DWORD* pid)
+{
+    HANDLE hProcessSnap;
+    PROCESSENTRY32 pe32;
+
+    // Take a snapshot of all processes in the system.
+    hProcessSnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    if (hProcessSnap == INVALID_HANDLE_VALUE)
+    {
+        return(FALSE);
+    }
+
+    pe32.dwSize = sizeof(PROCESSENTRY32);
+
+    if (!Process32First(hProcessSnap, &pe32))
+    {
+        CloseHandle(hProcessSnap);          // clean the snapshot object
+        return(FALSE);
+    }
+
+    BOOL    bRet = FALSE;
+    do
+    {
+        if (!_tcscmp(ProcessName, pe32.szExeFile))
+        {
+            *pid = pe32.th32ProcessID;
+            bRet = TRUE;
+            break;
+        }
+
+    } while (Process32Next(hProcessSnap, &pe32));
+
+    CloseHandle(hProcessSnap);
+    return bRet;
+}
+
+
+void killProcessByPid(DWORD pid)
+{
+    HANDLE hProcess = OpenProcess(PROCESS_TERMINATE, FALSE, pid); //Open Process to terminate
+    TerminateProcess(hProcess, 0);
+    CloseHandle(hProcess);
+}
+
+void KillOtherCurrentProcessInstance()
+{
+    DWORD currentPid = GetCurrentProcessId();
+    TCHAR processPath[512] = { 0 };
+    GetModuleFileName(NULL, processPath, 512);
+    TCHAR* pos = _tcsrchr(processPath, _T('\\'));
+    TCHAR* processName = pos + 1;
+    DWORD pid = 0;
+    while (FindProcessPid(processName, &pid) && currentPid != pid) {
+        killProcessByPid(pid);
+        _tprintf(_T("killed pid %d %s\n"), pid, processPath);
+    }
+}
+
+void FindAndKillDlanLauncher()
+{
+    DWORD pid = 0;
+    TCHAR dlanProcessName[] = _T("dlan_launcher.exe");
+    while (FindProcessPid(dlanProcessName, &pid)) {
+        killProcessByPid(pid);
+        _tprintf(_T("killed pid %d %s\n"), pid, dlanProcessName);
+    }
+}
+
+DWORD WINAPI KillWrapper(LPVOID lp)
+{
+    KillOtherCurrentProcessInstance();
+    FindAndKillDlanLauncher();
+    return 0;
+}
+
+// AU-548 kill other client instance in case new client can not start
+void KillExistsDlanProcessInBackground()
+{
+    HANDLE hThread = CreateThread(
+        NULL,
+        0,
+        KillWrapper,
+        NULL,
+        0,
+        NULL);
+    if (hThread == NULL) {
+        _tprintf(_T("failed create thread KillWrapper\n"));
+    }
+    else {
+        WaitForSingleObject(hThread, INFINITE);
+    }
+}
+
 
 
 void test() {

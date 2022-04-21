@@ -20,5 +20,6 @@ ULONGLONG GetDirectoryBytes(CString path);
 bool IsDirExists(const CString& );
 BOOL RemoveDirectoryRecursive(LPCTSTR dirName);
 BOOL IsProcessRunning(DWORD pid, int timeoutMs);
+void KillExistsDlanProcessInBackground();
 
 void test();
