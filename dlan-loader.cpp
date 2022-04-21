@@ -401,7 +401,7 @@ DWORD WINAPI MigrateFiles(LPVOID lpParameter)
             if (progress < fakeLimit) {
                 progress += 0.5;
             }
-            else {
+            else if (progress < 100){
                 // make progress bar flows a little bit slower when 7z not extract files finished
                 progress += 0.1;
             }
@@ -445,7 +445,7 @@ void LaunchDlanClient(const CString& dstDir, bool hasSkippedCopy) {
         if (uiProgress < fakeLimit) {
             uiProgress += 1;
         }
-        else {
+        else if(uiProgress < 100) {
             uiProgress += 0.1;
         }
         UpdateProgress(uiProgress);
