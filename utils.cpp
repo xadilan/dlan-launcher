@@ -2,6 +2,25 @@
 #include <tlhelp32.h>    //CreateToolhelp32Snapshot
 #include <tchar.h>
 
+using namespace std;
+
+std::shared_ptr<spdlog::logger> GetLogger()
+{
+    try
+    {
+        string tmp = getenv("TMP");
+        string logPath = tmp;
+        logPath += "\\dlan-loader.log";
+        auto logger = spdlog::basic_logger_mt("dlan-loader", logPath);
+        return logger;
+    }
+    catch (const spdlog::spdlog_ex& ex)
+    {
+        std::cout << "Log init failed: " << ex.what() << std::endl;
+    }
+    return spdlog::get("dlan-loader");
+}
+
 BOOL IsDirectory(LPCTSTR pstrPath)
 {
     if (NULL == pstrPath)

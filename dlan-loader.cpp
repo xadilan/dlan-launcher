@@ -5,13 +5,13 @@
 #include "dlan-loader.h"
 #include <CommCtrl.h>
 
-
 #pragma comment(lib, "comctl32.lib")
 //
 #pragma comment(linker,"\"/manifestdependency:type='win32' \
 name='Microsoft.Windows.Common-Controls' version='6.0.0.0' \
 processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
 
+using namespace std;
 #define ID_DEFAULTPROGRESSCTRL	401
 #define ID_SMOOTHPROGRESSCTRL	402
 #define ID_LABEL 501
@@ -38,6 +38,7 @@ HWND gHProgressLabel;
 ULONGLONG gClientTotalByts = 0;
 CString gClientPath;
 CString gClientTmpFile;
+auto logger = GetLogger();
 
 
 // https://www.codeproject.com/Tips/250672/CenterWindow-in-WIN32
@@ -69,14 +70,13 @@ VOID CenterWindow(HWND hwndWindow)
 
 BOOL Is64BitOS() {
     BOOL f64 = FALSE;
-    return IsWow64Process(GetCurrentProcess(), &f64) && f64;
+    return IsWow64Process(GetCurrentProcess(), &f64) & f64;
 }
 
-#ifdef _DEBUGT
+#ifdef _DEBUG
 int main(int argc, char* argv[]) {
-    TCHAR srcFile[] = _T("D:\\dlan_launcher_32.zip");
-    TCHAR dstFolder[] = _T("D:\\");
-    ExtractZipFile(srcFile, dstFolder);
+    logger->info("hello seattle: {} {}", "albertofwb", 123123);
+    std::cout << "Log init succeed" << std::endl;
     return 0;
 }
 #else
@@ -341,7 +341,7 @@ DWORD WINAPI MigrateFiles(LPVOID lpParameter)
     CString dstDir;
     dstDir.Format(_T("%s%s"), biggestDrive, DLAN_FOLDER_NAME);
     gClientTmpFile = dstDir + "\\record.txt";
-    gClientPath = dstDir + "\\dlan_launcher.exe";
+    gClientPath.Format(_T("%s\\%s.exe"), dstDir, DLAN_FOLDER_NAME);
     CString pkgPath;
     pkgPath.Format(_T("%s\\windows\\%s.zip"), workDir, DLAN_FOLDER_NAME);
     CString z7Path;
@@ -371,7 +371,7 @@ DWORD WINAPI MigrateFiles(LPVOID lpParameter)
         //RemoveDirectoryRecursive(dstDir);
         // CopyFolder(srcDir, dstDir, NotifyProgress);
         TCHAR cmd[1024] = { 0 };
-        _sntprintf(cmd, 512, _T("%s -y x -o\"%s\" \"%s\""), z7Path, biggestDrive, pkgPath);
+        _sntprintf(cmd, 512, _T("%s -y x -o\"%s\" \"%s\""), z7Path.GetBuffer(0), biggestDrive.GetBuffer(0), pkgPath.GetBuffer(0));
 
         STARTUPINFO si;
         PROCESS_INFORMATION pi = { 0 };
@@ -395,7 +395,7 @@ DWORD WINAPI MigrateFiles(LPVOID lpParameter)
         }
 
         DWORD retValue = 0;
-        float progress = 0;
+        double progress = 0;
         const int fakeLimit = 90;
         while (IsProcessRunning(pi.dwProcessId, 100)) {
             if (progress < fakeLimit) {
@@ -409,6 +409,11 @@ DWORD WINAPI MigrateFiles(LPVOID lpParameter)
         }
     }
     if (!PathFileExists(gClientPath)) {
+#ifndef _DEBUG
+        USES_CONVERSION;
+        string p(W2A(gClientPath));
+        logger->info("can not find: {}", p);
+#endif // _DEBUG
         SetWindowText(gHStatusLabel, _T("找不到客户端路径 ..."));
     }
     else {
@@ -439,7 +444,7 @@ void LaunchDlanClient(const CString& dstDir, bool hasSkippedCopy) {
     }
     SetWindowText(gHStatusLabel, _T("加载完成，正在启动客户端 ..."));
     PROCESS_INFORMATION pi = RunNewProcess(cmd);
-    float uiProgress = 1;
+    double uiProgress = 1;
     const int fakeLimit = 90;
     while (!HasClientWindowAppears()) {
         if (uiProgress < fakeLimit) {

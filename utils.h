@@ -3,6 +3,14 @@
 #define _AFX_NO_MFC_CONTROLS_IN_DIALOGS
 #include <afx.h>
 #include <shlwapi.h>
+#include <iostream>
+#include <string>
+#include "spdlog/spdlog.h"
+#include "spdlog/sinks/basic_file_sink.h"
+
+
+std::shared_ptr<spdlog::logger> GetLogger();
+
 
 typedef void (*SlotCallback)(ULONGLONG, LPCTSTR, BOOL);
 BOOL CopyFolder(LPCTSTR pstrSrcFolder, LPCTSTR pstrDstFolder, SlotCallback callback);
