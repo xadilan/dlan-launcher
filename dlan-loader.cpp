@@ -19,8 +19,8 @@ using namespace std;
 
 // Global Variables:
 HINSTANCE hInst;                                // current instance
-WCHAR szTitle[MAX_LOADSTRING];                  // The title bar text
-WCHAR szWindowClass[MAX_LOADSTRING];            // the main window class name
+TCHAR szTitle[MAX_LOADSTRING];                  // The title bar text
+TCHAR szWindowClass[MAX_LOADSTRING];            // the main window class name
 CString DLAN_FOLDER_NAME;
 
 // Forward declarations of functions included in this code module:
@@ -37,9 +37,9 @@ HWND gHStatusLabel;
 HWND gHProgressLabel;
 ULONGLONG gClientTotalByts = 0;
 CString gClientPath;
+CString gClientDir;
 CString gClientTmpFile;
 auto logger = GetLogger();
-
 
 // https://www.codeproject.com/Tips/250672/CenterWindow-in-WIN32
 VOID CenterWindow(HWND hwndWindow)
@@ -80,25 +80,26 @@ int main(int argc, char* argv[]) {
     return 0;
 }
 #else
-int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
+int APIENTRY WinMain(_In_ HINSTANCE hInstance,
     _In_opt_ HINSTANCE hPrevInstance,
-    _In_ LPWSTR    lpCmdLine,
+    _In_ LPTSTR    lpCmdLine,
     _In_ int       nCmdShow)
 {
     UNREFERENCED_PARAMETER(hPrevInstance);
     UNREFERENCED_PARAMETER(lpCmdLine);
+    logger->info("started");
 
     // TODO: Place code here.
     if (!Is64BitOS()) {
-        DLAN_FOLDER_NAME = L"dlan_launcher_32";
+        DLAN_FOLDER_NAME = _T("dlan_launcher_32");
     }
     else {
-        DLAN_FOLDER_NAME = L"dlan_launcher_64";
+        DLAN_FOLDER_NAME = _T("dlan_launcher_64");
     }
 
     // Initialize global strings
-    LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
-    LoadStringW(hInstance, IDC_DLANLOADER, szWindowClass, MAX_LOADSTRING);
+    LoadString(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
+    LoadString(hInstance, IDC_DLANLOADER, szWindowClass, MAX_LOADSTRING);
     MyRegisterClass(hInstance);
 
     // Perform application initialization:
@@ -134,7 +135,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 //
 ATOM MyRegisterClass(HINSTANCE hInstance)
 {
-    WNDCLASSEXW wcex;
+    WNDCLASSEX wcex;
 
     wcex.cbSize = sizeof(WNDCLASSEX);
 
@@ -146,11 +147,11 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
     wcex.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_DLANLOADER));
     wcex.hCursor = LoadCursor(nullptr, IDC_ARROW);
     wcex.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
-    wcex.lpszMenuName = MAKEINTRESOURCEW(IDC_DLANLOADER);
+    wcex.lpszMenuName = MAKEINTRESOURCE(IDC_DLANLOADER);
     wcex.lpszClassName = szWindowClass;
     wcex.hIconSm = LoadIcon(wcex.hInstance, MAKEINTRESOURCE(IDI_SMALL));
 
-    return RegisterClassExW(&wcex);
+    return RegisterClassEx(&wcex);
 }
 
 //
@@ -168,7 +169,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
     KillExistsDlanProcessInBackground();
     hInst = hInstance; // Store instance handle in our global variable
 
-    ghMainWindow = CreateWindowW(szWindowClass,
+    ghMainWindow = CreateWindow(szWindowClass,
         szTitle,
         WS_OVERLAPPEDWINDOW,
         0,
@@ -338,15 +339,13 @@ DWORD WINAPI MigrateFiles(LPVOID lpParameter)
     srcDir += DLAN_FOLDER_NAME;
     ULONGLONG driveRestBytes = 0;
     CString biggestDrive = GetBiggestDriveFromHDD(&driveRestBytes);
-    CString dstDir;
-    dstDir.Format(_T("%s%s"), biggestDrive, DLAN_FOLDER_NAME);
-    gClientTmpFile = dstDir + "\\record.txt";
-    gClientPath.Format(_T("%s\\%s.exe"), dstDir, DLAN_FOLDER_NAME);
+    gClientDir.Format(_T("%s%s"), biggestDrive, DLAN_FOLDER_NAME);
+    gClientTmpFile = gClientDir + "\\record.txt";
+    gClientPath.Format(_T("%s\\%s.exe"), gClientDir, DLAN_FOLDER_NAME);
     CString pkgPath;
     pkgPath.Format(_T("%s\\windows\\%s.zip"), workDir, DLAN_FOLDER_NAME);
     CString z7Path;
     z7Path.Format(_T("%s\\windows\\7z.exe"), workDir);
-
     CString msg;
     if (!PathFileExists(z7Path)) {
         CString msg;
@@ -360,7 +359,7 @@ DWORD WINAPI MigrateFiles(LPVOID lpParameter)
     }
 
     BOOL hasSkippedCopy = FALSE;
-    if (dstDir[0] == 'X') {
+    if (gClientDir[0] == 'X') {
         gClientTmpFile = "X:\\record.txt";
         hasSkippedCopy = true;
         gClientPath = srcDir + "\\dlan_launcher.exe";
@@ -372,6 +371,7 @@ DWORD WINAPI MigrateFiles(LPVOID lpParameter)
         // CopyFolder(srcDir, dstDir, NotifyProgress);
         TCHAR cmd[1024] = { 0 };
         _sntprintf(cmd, 512, _T("%s -y x -o\"%s\" \"%s\""), z7Path.GetBuffer(0), biggestDrive.GetBuffer(0), pkgPath.GetBuffer(0));
+        logger->info("execute cmd {}", cmd);
 
         STARTUPINFO si;
         PROCESS_INFORMATION pi = { 0 };
@@ -408,16 +408,13 @@ DWORD WINAPI MigrateFiles(LPVOID lpParameter)
             UpdateProgress(progress);
         }
     }
+    logger->info("extracted to {} done", biggestDrive);
     if (!PathFileExists(gClientPath)) {
-#ifndef _DEBUG
-        USES_CONVERSION;
-        string p(W2A(gClientPath));
-        logger->info("can not find: {}", p);
-#endif // _DEBUG
+        logger->warn("can not find: {}", gClientPath);
         SetWindowText(gHStatusLabel, _T("找不到客户端路径 ..."));
     }
     else {
-        LaunchDlanClient(dstDir, hasSkippedCopy);
+        LaunchDlanClient(gClientDir, hasSkippedCopy);
     }
     return 0;
 }
@@ -426,6 +423,18 @@ bool HasClientWindowAppears() {
     return PathFileExists(gClientTmpFile);
 }
 
+
+void DisableCrashUI()
+{
+    CString doctotextPath;
+    doctotextPath.Format(_T("%s\\tools\\doctotext\\doctotext.exe"), gClientDir);
+    string cmd = "rundll32 sysdm.cpl, NoExecuteAddFileOptOutList ";
+    cmd += '\"';
+    cmd += doctotextPath;
+    cmd += '\"';
+    int ret = system(cmd.c_str());
+    logger->info("disable doctotext crash window ret {} with: {}", ret, cmd);
+}
 
 void LaunchDlanClient(const CString& dstDir, bool hasSkippedCopy) {
     CString cmd = gClientPath + " --record_file ";
@@ -443,10 +452,12 @@ void LaunchDlanClient(const CString& dstDir, bool hasSkippedCopy) {
         cmd += ukeyDir;
     }
     SetWindowText(gHStatusLabel, _T("加载完成，正在启动客户端 ..."));
+    logger->info("init client with {}", cmd);
     PROCESS_INFORMATION pi = RunNewProcess(cmd);
     double uiProgress = 1;
     const int fakeLimit = 90;
-    while (!HasClientWindowAppears()) {
+    int timeoutSeconds = 10;
+    while (!HasClientWindowAppears() && timeoutSeconds > 0) {
         if (uiProgress < fakeLimit) {
             uiProgress += 1;
         }
@@ -455,15 +466,19 @@ void LaunchDlanClient(const CString& dstDir, bool hasSkippedCopy) {
         }
         UpdateProgress(uiProgress);
         Sleep(100);
+        timeoutSeconds -= 1;
     }
     UpdateProgress(100);
 
 
     if (NULL == pi.hProcess) {
         SetWindowText(gHStatusLabel, _T("启动客户端失败 ..."));
+        logger->warn("failed start client");
     }
     else
     {
+        DisableCrashUI();
+        logger->info("start client ok");
         ShowClientLaunchProgress();
         ShowWindow(ghMainWindow, SW_HIDE);
         WaitForSingleObject(pi.hProcess, INFINITE);
@@ -473,6 +488,7 @@ void LaunchDlanClient(const CString& dstDir, bool hasSkippedCopy) {
 
     if (!PathFileExists(gClientTmpFile)) {
         CString msg = _T("找不到文件 ") + gClientTmpFile;
+        logger->warn("can not find {}", gClientTmpFile);
         SetWindowText(gHStatusLabel, msg);
         return;
     }
@@ -483,14 +499,22 @@ void LaunchDlanClient(const CString& dstDir, bool hasSkippedCopy) {
     input.Close();
     DeleteFile(gClientTmpFile);
     if (IsDirExists(clientTmpDir)) {
+        logger->info("cleanning runtime data {}", clientTmpDir);
         RemoveDirectoryRecursive(clientTmpDir);
+    }
+    else {
+        logger->warn("can not find {}", clientTmpDir);
     }
 
     // 其退出时，清除客户端文件
     if (IsDirExists(dstDir) && !hasSkippedCopy) {
         SetWindowText(gHStatusLabel, _T("正在清空残存客户端文件"));
+        logger->info("cleanning extracted files {}", dstDir);
         RemoveDirectoryRecursive(dstDir);
     }
-
+    else {
+        logger->warn("can not find {}", dstDir);
+    }
+    logger->info("client exit");
     exit(0);
 }

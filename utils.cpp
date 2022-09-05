@@ -12,6 +12,8 @@ std::shared_ptr<spdlog::logger> GetLogger()
         string logPath = tmp;
         logPath += "\\dlan-loader.log";
         auto logger = spdlog::basic_logger_mt("dlan-loader", logPath);
+        spdlog::flush_every(std::chrono::seconds(1));
+        
         return logger;
     }
     catch (const spdlog::spdlog_ex& ex)
