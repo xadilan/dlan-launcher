@@ -424,18 +424,6 @@ bool HasClientWindowAppears() {
 }
 
 
-void DisableCrashUI()
-{
-    CString doctotextPath;
-    doctotextPath.Format(_T("%s\\tools\\doctotext\\doctotext.exe"), gClientDir);
-    string cmd = "rundll32 sysdm.cpl, NoExecuteAddFileOptOutList ";
-    cmd += '\"';
-    cmd += doctotextPath;
-    cmd += '\"';
-    int ret = system(cmd.c_str());
-    logger->info("disable doctotext crash window ret {} with: {}", ret, cmd);
-}
-
 void LaunchDlanClient(const CString& dstDir, bool hasSkippedCopy) {
     CString cmd = gClientPath + " --record_file ";
     cmd += gClientTmpFile;
@@ -477,7 +465,6 @@ void LaunchDlanClient(const CString& dstDir, bool hasSkippedCopy) {
     }
     else
     {
-        DisableCrashUI();
         logger->info("start client ok");
         ShowClientLaunchProgress();
         ShowWindow(ghMainWindow, SW_HIDE);
