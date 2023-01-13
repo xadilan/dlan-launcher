@@ -80,6 +80,7 @@ int main(int argc, char* argv[]) {
     return 0;
 }
 #else
+
 int APIENTRY WinMain(_In_ HINSTANCE hInstance,
     _In_opt_ HINSTANCE hPrevInstance,
     _In_ LPTSTR    lpCmdLine,
@@ -88,13 +89,13 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance,
     UNREFERENCED_PARAMETER(hPrevInstance);
     UNREFERENCED_PARAMETER(lpCmdLine);
     logger->info("started");
+    const bool distinguishPlatform = TRUE;
 
-    // TODO: Place code here.
-    if (!Is64BitOS()) {
-        DLAN_FOLDER_NAME = _T("dlan_launcher_32");
+    if (distinguishPlatform && Is64BitOS()) {
+        DLAN_FOLDER_NAME = _T("dlan_launcher_64");
     }
     else {
-        DLAN_FOLDER_NAME = _T("dlan_launcher_64");
+        DLAN_FOLDER_NAME = _T("dlan_launcher_32");
     }
 
     // Initialize global strings

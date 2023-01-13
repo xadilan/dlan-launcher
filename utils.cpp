@@ -216,7 +216,7 @@ PROCESS_INFORMATION RunNewProcess(LPCTSTR lpCommandLine, LPCTSTR lpWorkDir) {
         NULL,
         NULL,
         FALSE,
-        CREATE_NEW_PROCESS_GROUP,
+        CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW,
         NULL,
         lpWorkDir,
         &si,
