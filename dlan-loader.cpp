@@ -73,6 +73,19 @@ BOOL Is64BitOS() {
     return IsWow64Process(GetCurrentProcess(), &f64) & f64;
 }
 
+BOOL IsXPOS()
+{
+    OSVERSIONINFO osvi;
+
+    ZeroMemory(&osvi, sizeof(OSVERSIONINFO));
+    osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
+
+    GetVersionEx(&osvi);
+
+    return (osvi.dwMajorVersion == 5 && osvi.dwMinorVersion == 1);
+}
+
+
 #ifdef _DEBUG
 int main(int argc, char* argv[]) {
     logger->info("hello seattle: {} {}", "albertofwb", 123123);
@@ -90,14 +103,16 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance,
     UNREFERENCED_PARAMETER(lpCmdLine);
     logger->info("started");
     const bool distinguishPlatform = TRUE;
-
-    if (distinguishPlatform && Is64BitOS()) {
+    if (IsXPOS()) {
+        DLAN_FOLDER_NAME = _T("dlan_launcher_xp");
+    }
+    else if (distinguishPlatform && Is64BitOS()) {
         DLAN_FOLDER_NAME = _T("dlan_launcher_64");
     }
     else {
         DLAN_FOLDER_NAME = _T("dlan_launcher_32");
     }
-
+    logger->info("selected " + DLAN_FOLDER_NAME);
     // Initialize global strings
     LoadString(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
     LoadString(hInstance, IDC_DLANLOADER, szWindowClass, MAX_LOADSTRING);
